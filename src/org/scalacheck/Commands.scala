@@ -2,7 +2,7 @@ package org.scalacheck
 
 import Gen._
 import Prop._
-import Arbitrary._
+import Shrink._
 
 /** See User Guide for usage examples */
 trait Commands {
@@ -78,12 +78,6 @@ trait Commands {
       override def toString = cmds.map(_.toString).mkString(", ")
     }
 
-    /* TODO Hack to be able to shrink command sequences. Maybe we should
-     * split the Arbitrary type into Arbitrary and Shrink? */
-    implicit def arbCommand(x: Arb[Command]) = new Arbitrary[Command] {
-      def getArbitrary = value(null)
-    }
-
     def genCmds = for {
       s <- value(() => initState())
       cmds <- genCommands(s)
@@ -97,6 +91,7 @@ trait Commands {
       val s = sf()
       validCommands(s,cs) ==> runCmds(s,cs).addArg(Arg("INISTATE",s,0))
     }
+
   }
 
 }

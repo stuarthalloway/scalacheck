@@ -86,6 +86,7 @@ object Prop extends Properties {
 
   import Gen.{value, fail, frequency, elements}
   import Arbitrary._
+  import Shrink._
 
   // Properties for the Prop class
 
@@ -225,7 +226,7 @@ object Prop extends Properties {
   def forAllShrink[A](g: Gen[A],shrink: A => Stream[A])(f: A => Prop) =
     new Prop((prms: Gen.Params) => {
 
-      import Stream._
+      import Stream.{cons, empty}
 
       def getFirstFail(xs: Stream[A], shrinks: Int) = {
         val results = xs.map(x =>
@@ -265,7 +266,7 @@ object Prop extends Properties {
   /** Universal quantifier, shrinks failed arguments with the default
    *  shrink function for the type */
   def forAllDefaultShrink[A](g: Gen[A])(f: A => Prop)
-    (implicit a: Arb[A] => Arbitrary[A]) = forAllShrink(g,shrink[A])(f)
+    (implicit a: Arbitrary[A], s: Shrink[A]) = forAllShrink(g,shrink[A])(f)
 
 
   class ExtendedBoolean(b: Boolean) {
@@ -300,52 +301,52 @@ object Prop extends Properties {
   def property[A1,P] (
     f:  A1 => P)(implicit
     p: P => Prop,
-    a1: Arb[A1] => Arbitrary[A1]
+    a1: Arbitrary[A1], s1: Shrink[A1]
   ) = forAllShrink(arbitrary[A1],shrink[A1])(f andThen p)
 
   def property[A1,A2,P] (
     f:  (A1,A2) => P)(implicit
     p: P => Prop,
-    a1: Arb[A1] => Arbitrary[A1],
-    a2: Arb[A2] => Arbitrary[A2]
+    a1: Arbitrary[A1], s1: Shrink[A1],
+    a2: Arbitrary[A2], s2: Shrink[A2]
   ): Prop = property((a: A1) => property(f(a, _:A2)))
 
   def property[A1,A2,A3,P] (
     f:  (A1,A2,A3) => P)(implicit
     p: P => Prop,
-    a1: Arb[A1] => Arbitrary[A1],
-    a2: Arb[A2] => Arbitrary[A2],
-    a3: Arb[A3] => Arbitrary[A3]
+    a1: Arbitrary[A1], s1: Shrink[A1],
+    a2: Arbitrary[A2], s2: Shrink[A2],
+    a3: Arbitrary[A3], s3: Shrink[A3]
   ): Prop = property((a: A1) => property(f(a, _:A2, _:A3)))
 
   def property[A1,A2,A3,A4,P] (
     f:  (A1,A2,A3,A4) => P)(implicit
     p: P => Prop,
-    a1: Arb[A1] => Arbitrary[A1],
-    a2: Arb[A2] => Arbitrary[A2],
-    a3: Arb[A3] => Arbitrary[A3],
-    a4: Arb[A4] => Arbitrary[A4]
+    a1: Arbitrary[A1], s1: Shrink[A1],
+    a2: Arbitrary[A2], s2: Shrink[A2],
+    a3: Arbitrary[A3], s3: Shrink[A3],
+    a4: Arbitrary[A4], s4: Shrink[A4]
   ): Prop = property((a: A1) => property(f(a, _:A2, _:A3, _:A4)))
 
   def property[A1,A2,A3,A4,A5,P] (
     f:  (A1,A2,A3,A4,A5) => P)(implicit
     p: P => Prop,
-    a1: Arb[A1] => Arbitrary[A1],
-    a2: Arb[A2] => Arbitrary[A2],
-    a3: Arb[A3] => Arbitrary[A3],
-    a4: Arb[A4] => Arbitrary[A4],
-    a5: Arb[A5] => Arbitrary[A5]
+    a1: Arbitrary[A1], s1: Shrink[A1],
+    a2: Arbitrary[A2], s2: Shrink[A2],
+    a3: Arbitrary[A3], s3: Shrink[A3],
+    a4: Arbitrary[A4], s4: Shrink[A4],
+    a5: Arbitrary[A5], s5: Shrink[A5]
   ): Prop = property((a: A1) => property(f(a, _:A2, _:A3, _:A4, _:A5)))
 
   def property[A1,A2,A3,A4,A5,A6,P] (
     f:  (A1,A2,A3,A4,A5,A6) => P)(implicit
     p: P => Prop,
-    a1: Arb[A1] => Arbitrary[A1],
-    a2: Arb[A2] => Arbitrary[A2],
-    a3: Arb[A3] => Arbitrary[A3],
-    a4: Arb[A4] => Arbitrary[A4],
-    a5: Arb[A5] => Arbitrary[A5],
-    a6: Arb[A6] => Arbitrary[A6]
+    a1: Arbitrary[A1], s1: Shrink[A1],
+    a2: Arbitrary[A2], s2: Shrink[A2],
+    a3: Arbitrary[A3], s3: Shrink[A3],
+    a4: Arbitrary[A4], s4: Shrink[A4],
+    a5: Arbitrary[A5], s5: Shrink[A5],
+    a6: Arbitrary[A6], s6: Shrink[A6]
   ): Prop = property((a: A1) => property(f(a, _:A2, _:A3, _:A4, _:A5, _:A6)))
 
 }
