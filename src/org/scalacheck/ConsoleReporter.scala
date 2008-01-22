@@ -1,3 +1,12 @@
+/*-------------------------------------------------------------------------*\
+**  ScalaCheck                                                             **
+**  Copyright (c) 2007-2008 Rickard Nilsson. All rights reserved.          **
+**  http://code.google.com/p/scalacheck/                                   **
+**                                                                         **
+**  This software is released under the terms of the Revised BSD License.  **
+**  There is NO WARRANTY. See the file LICENSE for the full text.          **
+\*-------------------------------------------------------------------------*/
+
 package org.scalacheck
 
 object ConsoleReporter {
@@ -27,24 +36,24 @@ object ConsoleReporter {
     strs.mkString("\n")
   }
 
-  def propReport(res: Option[Prop.Result], s: Int, d: Int) =
+  def propReport(s: Int, d: Int) =
   {
-    if(d == 0) printf("\rPassed {0} tests", s)
-    else printf("\rPassed {0} tests; {1} discarded", s, d)
+    if(d == 0) printf("\rPassed {0} tests\r", s)
+    else printf("\rPassed {0} tests; {1} discarded\r", s, d)
     Console.flush
   }
 
-  def propReport(pName: String, res: Option[Prop.Result], s: Int, d: Int) =
+  def propReport(pName: String, s: Int, d: Int) =
   {
-    if(d == 0) printf("\r  {1}: Passed {0} tests", s, pName)
-    else printf("\r  {2}: Passed {0} tests; {1} discarded", s, d, pName)
+    if(d == 0) printf("\r  {1}: Passed {0} tests\r", s, pName)
+    else printf("\r  {2}: Passed {0} tests; {1} discarded\r", s, d, pName)
     Console.flush
   }
 
   def testReport(testStats: Test.Stats) =
   {
     val s = prettyTestStats(testStats)
-    printf("\r{2} {0}{1}\n", s, List.make(70 - s.length, " ").mkString(""),
+    printf("{2} {0}{1}\n", s, List.make(70 - s.length, " ").mkString(""),
       if(testStats.result.passed) "+" else "!")
     testStats
   }
@@ -52,7 +61,7 @@ object ConsoleReporter {
   def testReport(pName: String, stats: Test.Stats) =
   {
     def printL(t: String, label: String, str: String) =
-      printf("\r{0} {1}: {2}{3}\n", t, label, str,
+      printf("{0} {1}: {2}{3}\n", t, label, str,
         List.make(70 - str.length - label.length, " ").mkString(""))
 
     printL(if(stats.result.passed) "+" else "!", pName, prettyTestStats(stats))

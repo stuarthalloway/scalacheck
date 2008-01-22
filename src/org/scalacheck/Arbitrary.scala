@@ -1,3 +1,12 @@
+/*-------------------------------------------------------------------------*\
+**  ScalaCheck                                                             **
+**  Copyright (c) 2007-2008 Rickard Nilsson. All rights reserved.          **
+**  http://code.google.com/p/scalacheck/                                   **
+**                                                                         **
+**  This software is released under the terms of the Revised BSD License.  **
+**  There is NO WARRANTY. See the file LICENSE for the full text.          **
+\*-------------------------------------------------------------------------*/
+
 package org.scalacheck
 
 /** Most of the arbitrary generators and shrinkers defined in this file
@@ -21,7 +30,7 @@ sealed abstract class Arbitrary[T] {
 object Arbitrary {
 
   import Gen.{value, choose, sized, elements, listOf, listOf1,
-    frequency, oneOf}
+    frequency, oneOf, elementsFreq}
 
   /** Creates an instance of the Arbitrary class */
   def apply[T](g: Gen[T]) = new Arbitrary[T] {
@@ -42,6 +51,10 @@ object Arbitrary {
   implicit lazy val arbInt: Arbitrary[Int] = 
     Arbitrary(sized(s => choose(-s,s)))
 
+  /** Arbitrary instance of Throwable */
+  implicit lazy val arbThrowable: Arbitrary[Throwable] =
+    Arbitrary(value(new Exception))
+
   /** Arbitrary instance of Double */
   implicit lazy val arbDouble: Arbitrary[Double] = 
     Arbitrary(sized(s => choose(-s:Double,s:Double)))
@@ -60,14 +73,17 @@ object Arbitrary {
 
   /** Arbitrary instance of Gen */
   implicit def arbGen[T](implicit a: Arbitrary[T]): Arbitrary[Gen[T]] =
-    Arbitrary(arbitrary[T].map(value(_)))
+    Arbitrary(frequency(
+      (5, arbitrary[T] map (value(_))),
+      (1, Gen.fail)
+    ))
 
   /** Generates an arbitrary property */
-  implicit lazy val arbProp: Arbitrary[Prop] = Arbitrary(frequency(
-    (5, value(Prop.proved)),
-    (4, value(Prop.falsified)),
-    (2, value(Prop.undecided)),
-    (1, value(Prop.exception(null)))
+  implicit lazy val arbProp: Arbitrary[Prop] = Arbitrary(elementsFreq(
+    (5, Prop.proved),
+    (4, Prop.falsified),
+    (2, Prop.undecided),
+    (1, Prop.exception(null))
   ))
 
   /** Arbitrary instance of test params */

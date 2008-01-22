@@ -43,8 +43,8 @@ object Shrink {
     Shrink { xs =>
       def interleave(xs: Stream[List[T]],ys: Stream[List[T]]): Stream[List[T]] = 
         (xs,ys) match {
-          case (empty,ys) => ys
-          case (xs,empty) => xs
+          case (xs,ys) if xs.isEmpty => ys
+          case (xs,ys) if ys.isEmpty => xs
           case (cons(x,xs),cons(y,ys)) => cons(x, cons(y, interleave(xs,ys)))
         }
 
@@ -86,6 +86,7 @@ object Shrink {
   implicit def shrinkTuple3[T1,T2,T3](implicit
     s1: Shrink[T1], s2: Shrink[T2], s3: Shrink[T3]
   ): Shrink[(T1,T2,T3)] = Shrink { case (t1,t2,t3) =>
+    println("SHRINKING TUPLE" + (t1,t2,t3))
     (for(x1 <- shrink(t1)) yield (x1, t2, t3)) append
     (for(x2 <- shrink(t2)) yield (t1, x2, t3)) append
     (for(x3 <- shrink(t3)) yield (t1, t2, x3))

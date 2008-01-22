@@ -1,3 +1,12 @@
+/*-------------------------------------------------------------------------*\
+**  ScalaCheck                                                             **
+**  Copyright (c) 2007-2008 Rickard Nilsson. All rights reserved.          **
+**  http://code.google.com/p/scalacheck/                                   **
+**                                                                         **
+**  This software is released under the terms of the Revised BSD License.  **
+**  There is NO WARRANTY. See the file LICENSE for the full text.          **
+\*-------------------------------------------------------------------------*/
+
 package org.scalacheck
 
 import scala.collection.mutable.ListBuffer
@@ -12,32 +21,32 @@ class Prop(g: Gen.Params => Option[Prop.Result]) extends Gen[Prop.Result](g) {
    *  generate a result, the new property will generate false.
    */
   def &&(p: Prop): Prop = combine(p) {
-    case (x, Some(True(_))) => x
-    case (Some(True(_)), x) => x
+    case (x@Some(_: Exception), _) => x
+    case (_, x@Some(_: Exception)) => x
 
-    case (x@Some(False(_)), _) => x
-    case (_, x@Some(False(_))) => x
+    case (x, Some(_: True)) => x
+    case (Some(_: True), x) => x
 
-    case (None, x) => x
-    case (x, None) => x
+    case (x@Some(_: False), _) => x
+    case (_, x@Some(_: False)) => x
 
-    case (x, _) => x
+    case _ => None
   }
 
   /** Returns a new property that holds if either this
    *  or the given property (or both) hold.
    */
   def ||(p: Prop): Prop = combine(p) {
-    case (x@Some(True(_)), _) => x
-    case (_, x@Some(True(_))) => x
+    case (x@Some(_: Exception), _) => x
+    case (_, x@Some(_: Exception)) => x
 
-    case (Some(False(_)), x) => x
-    case (x, Some(False(_))) => x
+    case (x@Some(_: True), _) => x
+    case (_, x@Some(_: True)) => x
 
-    case (None, x) => x
-    case (x, None) => x
+    case (Some(_: False), x) => x
+    case (x, Some(_: False)) => x
 
-    case (x, _) => x
+    case _ => None
   }
 
   /** Returns a new property that holds if and only if both this
@@ -46,16 +55,17 @@ class Prop(g: Gen.Params => Option[Prop.Result]) extends Gen[Prop.Result](g) {
    *  as the other property.
    */
   def ++(p: Prop): Prop = combine(p) {
+    case (x@Some(_: Exception), _) => x
+    case (_, x@Some(_: Exception)) => x
+
     case (None, x) => x
     case (x, None) => x
 
-    case (x, Some(True(_))) => x
-    case (Some(True(_)), x) => x
+    case (x, Some(_: True)) => x
+    case (Some(_: True), x) => x
 
-    case (x@Some(False(_)), _) => x
-    case (_, x@Some(False(_))) => x
-
-    case (x, _) => x
+    case (x@Some(_: False), _) => x
+    case (_, x@Some(_: False)) => x
   }
 
   /** Returns a new property that holds if and only if both this
@@ -78,7 +88,7 @@ class Prop(g: Gen.Params => Option[Prop.Result]) extends Gen[Prop.Result](g) {
   ).label(label)
 
   override def toString = 
-    if(label.isEmpty) "Prop()" else "Prop(\"" + label + "\")"
+    if(label.length == 0) "Prop()" else "Prop(\"" + label + "\")"
 
 }
 
@@ -88,18 +98,29 @@ object Prop extends Properties {
   import Arbitrary._
   import Shrink._
 
-  // Properties for the Prop class
+  val name = "Prop"
 
-  specify("Prop.Prop.&& Commutativity", (p1: Prop, p2: Prop) =>
-    (p1 && p2) == (p2 && p1)
+
+  // Specifications for the Prop class
+
+  specify("Prop.&& Commutativity", (p1: Prop, p2: Prop) =>
+    (p1 && p2) === (p2 && p1)
   )
-  specify("Prop.Prop.&& Identity", (p: Prop) =>
-    (p && proved) == p
+  specify("Prop.&& Exception", (p: Prop) =>
+    (p && exception(null)) == exception(null)
   )
-  specify("Prop.Prop.&& False", (p: Prop) =>
-    (p && falsified) == falsified
+  specify("Prop.&& Identity", (p: Prop) =>
+    (p && proved) === p
   )
-  specify("Prop.Prop.&& Right prio", (sz: Int) => {
+  specify("Prop.&& False", {
+    val g = elements(proved,falsified,undecided)
+    forAll(g)(p => (p && falsified) == falsified)
+  })
+  specify("Prop.&& Undecided", {
+    val g = elements(proved,undecided)
+    forAll(g)(p => (p && undecided) === undecided)
+  })
+  specify("Prop.&& Right prio", (sz: Int) => {
     val p = proved.addArg(Arg("","RHS",0)) && proved.addArg(Arg("","LHS",0))
     p(Gen.Params(sz,StdRand)) match {
       case Some(r) if r.args == Arg("","RHS",0)::Nil => true
@@ -107,30 +128,41 @@ object Prop extends Properties {
     }
   })
 
-  specify("Prop.Prop.|| Commutativity", (p1: Prop, p2: Prop) =>
-    (p1 || p2) == (p2 || p1)
+  specify("Prop.|| Commutativity", (p1: Prop, p2: Prop) =>
+    (p1 || p2) === (p2 || p1)
   )
-  specify("Prop.Prop.|| Identity", (p: Prop) =>
-    (p || falsified) == p
+  specify("Prop.|| Exception", (p: Prop) =>
+    (p || exception(null)) == exception(null)
   )
-  specify("Prop.Prop.|| True", (p: Prop) =>
-    (p || proved) == proved
+  specify("Prop.|| Identity", (p: Prop) =>
+    (p || falsified) === p
   )
-
-  specify("Prop.Prop.++ Commutativity", (p1: Prop, p2: Prop) =>
-    (p1 ++ p2) == (p2 ++ p1)
-  )
-  specify("Prop.Prop.++ Identity", (p: Prop) =>
-    (p ++ undecided) == p
-  )
-  specify("Prop.Prop.++ False", (p: Prop) =>
-    (p ++ falsified) == falsified
-  )
-  specify("Prop.Prop.++ True", {
-    val g = elements(proved,falsified,exception(null))
-    forAll(g)(p => (p ++ proved) == p)
+  specify("Prop.|| True", {
+    val g = elements(proved,falsified,undecided)
+    forAll(g)(p => (p || proved) == proved)
+  })
+  specify("Prop.|| Undecided", {
+    val g = elements(falsified,undecided)
+    forAll(g)(p => (p || undecided) === undecided)
   })
 
+  specify("Prop.++ Commutativity", (p1: Prop, p2: Prop) =>
+    (p1 ++ p2) === (p2 ++ p1)
+  )
+  specify("Prop.++ Exception", (p: Prop) =>
+    (p ++ exception(null)) == exception(null)
+  )
+  specify("Prop.++ Identity 1", {
+    val g = elements(falsified,proved,exception(null))
+    forAll(g)(p => (p ++ proved) === p)
+  })
+  specify("Prop.++ Identity 2", (p: Prop) =>
+    (p ++ undecided) === p
+  )
+  specify("Prop.++ False", {
+    val g = elements(falsified,proved,undecided)
+    forAll(g)(p => (p ++ falsified) === falsified)
+  })
 
 
   // Types
@@ -138,9 +170,9 @@ object Prop extends Properties {
   /** The result of evaluating a property */
   abstract sealed class Result(val args: List[Arg]) {
     override def equals(x: Any) = (this,x) match {
-      case (True(_),True(_))   => true
-      case (False(_),False(_)) => true
-      case (Exception(_,_),Exception(_,_)) => true
+      case (_: True, _: True)   => true
+      case (_: False, _: False) => true
+      case (_: Exception, _: Exception) => true
       case _ => false
     }
 
@@ -172,6 +204,27 @@ object Prop extends Properties {
   /** Evaluating the property with the given arguments raised an exception */
   case class Exception(as: List[Arg], e: Throwable) extends Result(as)
 
+  /** Boolean with support for implication */
+  class ExtendedBoolean(b: Boolean) {
+    /** Implication */
+    def ==>(p: => Prop) = Prop.==>(b,p)
+  }
+
+  /** Any with support for implication and iff */
+  class ExtendedAny[T](x: T) {
+    /** Implication with several conditions */
+    def imply(f: PartialFunction[T,Prop]) = Prop.imply(x,f)
+    def iff(f: PartialFunction[T,Prop]) = Prop.iff(x,f)
+  }
+
+
+  // Implicit defs
+
+  implicit def extendedBoolean(b: Boolean) = new ExtendedBoolean(b)
+
+  implicit def extendedAny[T](x: T) = new ExtendedAny(x)
+
+  implicit def propBoolean(b: Boolean): Prop = if(b) proved else falsified
 
 
   // Private support functions
@@ -186,16 +239,25 @@ object Prop extends Properties {
 
   /** A property that never is proved or falsified */
   lazy val undecided: Prop = constantProp(None, "undecided")
+  specify("undecided", (prms: Gen.Params) => undecided(prms) == None)
 
   /** A property that always is false */
   lazy val falsified: Prop = constantProp(Some(False(Nil)), "falsified")
+  specify("falsified", (prms: Gen.Params) => falsified(prms) iff {
+    case Some(_: False) => true
+  })
 
   /** A property that always is true */
   lazy val proved: Prop = constantProp(Some(True(Nil)), "proved");
+  specify("proved", (prms: Gen.Params) => proved(prms) iff {
+    case Some(_: True) => true
+  })
 
   /** A property that denotes an exception */
-  def exception(e: Throwable): Prop =
-    constantProp(Some(Exception(Nil,e)), "Prop.exception")
+  def exception(e: Throwable) = constantProp(Some(Exception(Nil,e)),"exception")
+  specify("exception",(prms:Gen.Params, e:Throwable) => exception(e)(prms) iff {
+    case Some(Exception(_,f)) if f == e => true
+  })
 
   /** A property that depends on the generator size */
   def sizedProp(f: Int => Prop): Prop = new Prop(prms => f(prms.size)(prms))
@@ -207,23 +269,36 @@ object Prop extends Properties {
   def imply[T](x: T, f: PartialFunction[T,Prop]): Prop =
     property(if(f.isDefinedAt(x)) f(x) else undecided)
 
+  /** Property holds only if the given partial function is defined at
+   *  <code>x</code>, and returns a property that holds */
   def iff[T](x: T, f: PartialFunction[T,Prop]): Prop =
     property(if(f.isDefinedAt(x)) f(x) else falsified)
 
   /** Combines properties into one, which is true if and only if all the
-   *  properties are true
-   */
-  def all(ps: Seq[Prop]) = (proved /: ps) (_ && _)
+   *  properties are true */
+  def all(ps: Iterable[Prop]) = new Prop(prms => 
+    if(ps.forall(p => p(prms).getOrElse(False(Nil)).success)) proved(prms) 
+    else falsified(prms)
+  )
+  specify("all", forAll(Gen.listOf1(value(proved)))(l => all(l))) 
+
+  /** Combines properties into one, which is true if at least one of the
+   *  properties is true */
+  def exists(ps: Iterable[Prop]) = new Prop(prms => 
+    if(ps.exists(p => p(prms).getOrElse(False(Nil)).success)) proved(prms) 
+    else falsified(prms)
+  )
+  specify("exists", forAll(Gen.listOf1(value(proved)))(l => exists(l))) 
 
   /** Universal quantifier */
-  def forAll[A,P](g: Gen[A])(f: A => Prop): Prop = for {
+  def forAll[A,P <% Prop](g: Gen[A])(f: A => P): Prop = for {
     a <- g
     r <- property(f(a))
   } yield r.addArg(Arg(g.label,a,0))
 
   /** Universal quantifier, shrinks failed arguments with given shrink
    *  function */
-  def forAllShrink[A](g: Gen[A],shrink: A => Stream[A])(f: A => Prop) =
+  def forAllShrink[A, P <% Prop](g: Gen[A],shrink: A => Stream[A])(f: A => P) =
     new Prop((prms: Gen.Params) => {
 
       import Stream.{cons, empty}
@@ -265,45 +340,30 @@ object Prop extends Properties {
 
   /** Universal quantifier, shrinks failed arguments with the default
    *  shrink function for the type */
-  def forAllDefaultShrink[A](g: Gen[A])(f: A => Prop)
-    (implicit a: Arbitrary[A], s: Shrink[A]) = forAllShrink(g,shrink[A])(f)
+  def forAllDefaultShrink[T,P](g: Gen[T])(f: T => P)
+    (implicit s: Shrink[T], p: P => Prop) = forAllShrink(g, shrink[T])(f)
 
+  /** A property that holds if at least one of the given generators
+   *  fails generating a value */
+  def someFailing[T](gs: Iterable[Gen[T]]) = exists(gs.map(_ === fail))
 
-  class ExtendedBoolean(b: Boolean) {
-    /** Implication */
-    def ==>(p: => Prop) = Prop.==>(b,p)
-  }
+  /** A property that holds iff none of the given generators
+   *  fails generating a value */
+  def noneFailing[T](gs: Iterable[Gen[T]]) = all(gs.map(_ !== fail))
 
-  class ExtendedAny[T](x: T) {
-    /** Implication with several conditions */
-    def imply(f: PartialFunction[T,Prop]) = Prop.imply(x,f)
-    def iff(f: PartialFunction[T,Prop]) = Prop.iff(x,f)
-  }
-
-
-
-  // Implicit defs
-
-  implicit def extendedBoolean(b: Boolean) = new ExtendedBoolean(b)
-  implicit def extendedAny[T](x: T) = new ExtendedAny(x)
-
-
-
-  // Implicit properties for common types
-
-  implicit def propBoolean(b: Boolean): Prop = if(b) proved else falsified
-
-
-  def property (p: => Prop): Prop = new Prop(prms =>
-    (try { p } catch { case e => exception(e) })(prms)
+  /** Wraps and protects a property */
+  def property[P <% Prop](p: => P): Prop = new Prop(prms =>
+    (try { p: Prop } catch { case e => exception(e) })(prms)
   )
 
+  /** Converts a function into a property */
   def property[A1,P] (
     f:  A1 => P)(implicit
     p: P => Prop,
     a1: Arbitrary[A1], s1: Shrink[A1]
   ) = forAllShrink(arbitrary[A1],shrink[A1])(f andThen p)
 
+  /** Converts a function into a property */
   def property[A1,A2,P] (
     f:  (A1,A2) => P)(implicit
     p: P => Prop,
@@ -311,6 +371,7 @@ object Prop extends Properties {
     a2: Arbitrary[A2], s2: Shrink[A2]
   ): Prop = property((a: A1) => property(f(a, _:A2)))
 
+  /** Converts a function into a property */
   def property[A1,A2,A3,P] (
     f:  (A1,A2,A3) => P)(implicit
     p: P => Prop,
@@ -319,6 +380,7 @@ object Prop extends Properties {
     a3: Arbitrary[A3], s3: Shrink[A3]
   ): Prop = property((a: A1) => property(f(a, _:A2, _:A3)))
 
+  /** Converts a function into a property */
   def property[A1,A2,A3,A4,P] (
     f:  (A1,A2,A3,A4) => P)(implicit
     p: P => Prop,
@@ -328,6 +390,7 @@ object Prop extends Properties {
     a4: Arbitrary[A4], s4: Shrink[A4]
   ): Prop = property((a: A1) => property(f(a, _:A2, _:A3, _:A4)))
 
+  /** Converts a function into a property */
   def property[A1,A2,A3,A4,A5,P] (
     f:  (A1,A2,A3,A4,A5) => P)(implicit
     p: P => Prop,
@@ -338,6 +401,7 @@ object Prop extends Properties {
     a5: Arbitrary[A5], s5: Shrink[A5]
   ): Prop = property((a: A1) => property(f(a, _:A2, _:A3, _:A4, _:A5)))
 
+  /** Converts a function into a property */
   def property[A1,A2,A3,A4,A5,A6,P] (
     f:  (A1,A2,A3,A4,A5,A6) => P)(implicit
     p: P => Prop,
