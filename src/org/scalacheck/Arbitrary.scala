@@ -30,7 +30,7 @@ sealed abstract class Arbitrary[T] {
 object Arbitrary {
 
   import Gen.{value, choose, sized, elements, listOf, listOf1,
-    frequency, oneOf, elementsFreq}
+    frequency, oneOf, elementsFreq, containerOf}
 
   /** Creates an instance of the Arbitrary class */
   def apply[T](g: Gen[T]) = new Arbitrary[T] {
@@ -104,14 +104,23 @@ object Arbitrary {
   implicit def arbOption[T](implicit a: Arbitrary[T]): Arbitrary[Option[T]] = 
     Arbitrary(oneOf(value(None), arbitrary[T].map(Some(_))))
 
+  //implicit def arbContainer[C[_],T](implicit a: Arbitrary[T], b: Buildable[C]): Arbitrary[C[T]] =
+  //  Arbitrary(containerOf[C,T](arbitrary[T]))
+
   /** Arbitrary instance of List. The maximum length of the list
    *  depends on the size parameter. */
   implicit def arbList[T](implicit a: Arbitrary[T]): Arbitrary[List[T]] = 
-    Arbitrary(listOf(arbitrary[T]) map (_.toList))
+    Arbitrary(containerOf[List,T](arbitrary[T]))
 
-  /** Arbitrary instance of stream */
+  /** Arbitrary instance of Array. The maximum length of the array
+   *  depends on the size parameter. */
+  implicit def arbArray[T](implicit a: Arbitrary[T]): Arbitrary[Array[T]] = 
+    Arbitrary(containerOf[Array,T](arbitrary[T]))
+
+  /** Arbitrary instance of Stream. The maximum length of the stream
+   *  depends on the size parameter. */
   implicit def arbStream[T](implicit a: Arbitrary[T]): Arbitrary[Stream[T]] = 
-    Arbitrary(arbitrary[List[T]].map(xs => Stream.fromIterator(xs.elements)))
+    Arbitrary(containerOf[Stream,T](arbitrary[T]))
 
   /** Arbitrary instance of 2-tuple */
   implicit def arbTuple2[T1,T2](implicit
