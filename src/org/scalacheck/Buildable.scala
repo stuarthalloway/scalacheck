@@ -1,3 +1,12 @@
+/*-------------------------------------------------------------------------*\
+**  ScalaCheck                                                             **
+**  Copyright (c) 2007-2008 Rickard Nilsson. All rights reserved.          **
+**  http://code.google.com/p/scalacheck/                                   **
+**                                                                         **
+**  This software is released under the terms of the Revised BSD License.  **
+**  There is NO WARRANTY. See the file LICENSE for the full text.          **
+\*-------------------------------------------------------------------------*/
+
 package org.scalacheck
 
 trait Builder[C[_], T] {
@@ -11,6 +20,9 @@ trait Buildable[C[_]] {
 
 object Buildable {
 
+  import scala.collection._
+  import java.util.ArrayList
+
   implicit object buildableList extends Buildable[List] {
     def builder[T] = new Builder[List,T] {
       val buf = new scala.collection.mutable.ListBuffer[T]
@@ -21,9 +33,9 @@ object Buildable {
 
   implicit object buildableStream extends Buildable[Stream] {
     def builder[T] = new Builder[Stream,T] {
-      var stream: Stream[T] = Stream.empty
-      def +=(x: T) = stream = Stream.cons(x, stream)
-      def finalise = stream.reverse
+      val buf = new scala.collection.mutable.ListBuffer[T]
+      def +=(x: T) = buf += x
+      def finalise = Stream.fromIterator(buf.elements)
     }
   }
 
@@ -36,6 +48,22 @@ object Buildable {
         buf.copyToArray(arr, 0)
         arr
       }
+    }
+  }
+
+  implicit object buildableSet extends Buildable[Set] {
+    def builder[T] = new Builder[ArrayList,T] {
+      val buf = mutable.Set.empty[T]
+      def +=(x: T) = buf += x
+      def finalise = buf
+    }
+  }
+
+  implicit object buildableArrayList extends Buildable[ArrayList] {
+    def builder[T] = new Builder[ArrayList,T] {
+      val al = new ArrayList[T]
+      def +=(x: T) = al.add(x)
+      def finalise = al
     }
   }
 
