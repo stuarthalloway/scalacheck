@@ -9,13 +9,12 @@
 
 package org.scalacheck
 
-import Stream.{cons, empty}
-
-sealed abstract class Shrink[T] {
-  def shrink(x: T): Stream[T]
-}
-
 object Shrink {
+
+  import Stream.{cons, empty}
+
+  type Shrink[T] = T => Stream[T]
+
   def apply[T](s: T => Stream[T]) = new Shrink[T] {
     override def shrink(x: T) = s(x)
   }
@@ -86,28 +85,107 @@ object Shrink {
   /** Shrink instance of 2-tuple */
   implicit def shrinkTuple2[T1,T2](implicit
     s1: Shrink[T1], s2: Shrink[T2]
-  ): Shrink[(T1,T2)] = Shrink { case (t1,t2) =>
-    (for(x1 <- shrink(t1)) yield (x1, t2)) append
-    (for(x2 <- shrink(t2)) yield (t1, x2))
-  }
+  ): Shrink[(T1,T2)] = 
+    Shrink { case (t1,t2) =>
+      (for(x1 <- shrink(t1)) yield (x1, t2)) append
+      (for(x2 <- shrink(t2)) yield (t1, x2))
+    }
 
   /** Shrink instance of 3-tuple */
   implicit def shrinkTuple3[T1,T2,T3](implicit
     s1: Shrink[T1], s2: Shrink[T2], s3: Shrink[T3]
-  ): Shrink[(T1,T2,T3)] = Shrink { case (t1,t2,t3) =>
-    println("SHRINKING TUPLE" + (t1,t2,t3))
-    (for(x1 <- shrink(t1)) yield (x1, t2, t3)) append
-    (for(x2 <- shrink(t2)) yield (t1, x2, t3)) append
-    (for(x3 <- shrink(t3)) yield (t1, t2, x3))
-  }
+  ): Shrink[(T1,T2,T3)] = 
+    Shrink { case (t1,t2,t3) =>
+      println("SHRINKING TUPLE" + (t1,t2,t3))
+      (for(x1 <- shrink(t1)) yield (x1, t2, t3)) append
+      (for(x2 <- shrink(t2)) yield (t1, x2, t3)) append
+      (for(x3 <- shrink(t3)) yield (t1, t2, x3))
+    }
 
   /** Shrink instance of 4-tuple */
   implicit def shrinkTuple4[T1,T2,T3,T4](implicit
     s1: Shrink[T1], s2: Shrink[T2], s3: Shrink[T3], s4: Shrink[T4]
-  ): Shrink[(T1,T2,T3,T4)] = Shrink { case (t1,t2,t3,t4) =>
-    (for(x1 <- shrink(t1)) yield (x1, t2, t3, t4)) append
-    (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4)) append
-    (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4)) append
-    (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4))
-  }
+  ): Shrink[(T1,T2,T3,T4)] = 
+    Shrink { case (t1,t2,t3,t4) =>
+      (for(x1 <- shrink(t1)) yield (x1, t2, t3, t4)) append
+      (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4)) append
+      (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4)) append
+      (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4))
+    }
+
+  /** Shrink instance of 5-tuple */
+  implicit def shrinkTuple4[T1,T2,T3,T4,T5](implicit
+    s1: Shrink[T1], s2: Shrink[T2], s3: Shrink[T3], s4: Shrink[T4], 
+    s5: Shrink[T5]
+  ): Shrink[(T1,T2,T3,T4,T5)] = 
+    Shrink { case (t1,t2,t3,t4,t5) =>
+      (for(x1 <- shrink(t1)) yield (x1, t2, t3, t4, t5)) append
+      (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4, t5)) append
+      (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4, t5)) append
+      (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4, t5)) append
+      (for(x5 <- shrink(t5)) yield (t1, t2, t3, x4, t5))
+    }
+
+  /** Shrink instance of 6-tuple */
+  implicit def shrinkTuple4[T1,T2,T3,T4,T5,T6](implicit
+    s1: Shrink[T1], s2: Shrink[T2], s3: Shrink[T3], s4: Shrink[T4], 
+    s5: Shrink[T5], s6: Shrink[T6]
+  ): Shrink[(T1,T2,T3,T4,T5,T6)] = 
+    Shrink { case (t1,t2,t3,t4,t5,t6) =>
+      (for(x1 <- shrink(t1)) yield (x1, t2, t3, t4, t5, t6)) append
+      (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4, t5, t6)) append
+      (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4, t5, t6)) append
+      (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4, t5, t6)) append
+      (for(x5 <- shrink(t5)) yield (t1, t2, t3, x4, t5, t6)) append
+      (for(x6 <- shrink(t6)) yield (t1, t2, t3, x4, t5, t6))
+    }
+
+  /** Shrink instance of 7-tuple */
+  implicit def shrinkTuple4[T1,T2,T3,T4,T5,T6,T7](implicit
+    s1: Shrink[T1], s2: Shrink[T2], s3: Shrink[T3], s4: Shrink[T4], 
+    s5: Shrink[T5], s6: Shrink[T6], s7: Shrink[T7]
+  ): Shrink[(T1,T2,T3,T4,T5,T6,T7)] = 
+    Shrink { case (t1,t2,t3,t4,t5,t6,t7) =>
+      (for(x1 <- shrink(t1)) yield (x1, t2, t3, t4, t5, t6, t7)) append
+      (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4, t5, t6, t7)) append
+      (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4, t5, t6, t7)) append
+      (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4, t5, t6, t7)) append
+      (for(x5 <- shrink(t5)) yield (t1, t2, t3, x4, t5, t6, t7)) append
+      (for(x6 <- shrink(t6)) yield (t1, t2, t3, x4, t5, t6, t7)) append
+      (for(x7 <- shrink(t7)) yield (t1, t2, t3, x4, t5, t6, t7))
+    }
+
+  /** Shrink instance of 8-tuple */
+  implicit def shrinkTuple4[T1,T2,T3,T4,T5,T6,T7,T8](implicit
+    s1: Shrink[T1], s2: Shrink[T2], s3: Shrink[T3], s4: Shrink[T4], 
+    s5: Shrink[T5], s6: Shrink[T6], s7: Shrink[T7], s8: Shrink[T8]
+  ): Shrink[(T1,T2,T3,T4,T5,T6,T7,T8)] = 
+    Shrink { case (t1,t2,t3,t4,t5,t6,t7,t8) =>
+      (for(x1 <- shrink(t1)) yield (x1, t2, t3, t4, t5, t6, t7, t8)) append
+      (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4, t5, t6, t7, t8)) append
+      (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4, t5, t6, t7, t8)) append
+      (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4, t5, t6, t7, t8)) append
+      (for(x5 <- shrink(t5)) yield (t1, t2, t3, x4, t5, t6, t7, t8)) append
+      (for(x6 <- shrink(t6)) yield (t1, t2, t3, x4, t5, t6, t7, t8)) append
+      (for(x7 <- shrink(t7)) yield (t1, t2, t3, x4, t5, t6, t7, t8)) append
+      (for(x8 <- shrink(t8)) yield (t1, t2, t3, x4, t5, t6, t7, t8))
+    }
+
+  /** Shrink instance of 9-tuple */
+  implicit def shrinkTuple4[T1,T2,T3,T4,T5,T6,T7,T8,T9](implicit
+    s1: Shrink[T1], s2: Shrink[T2], s3: Shrink[T3], s4: Shrink[T4], 
+    s5: Shrink[T5], s6: Shrink[T6], s7: Shrink[T7], s8: Shrink[T8],
+    s9: Shrink[T9]
+  ): Shrink[(T1,T2,T3,T4,T5,T6,T7,T8,T9)] = 
+    Shrink { case (t1,t2,t3,t4,t5,t6,t7,t8,t9) =>
+      (for(x1 <- shrink(t1)) yield (x1, t2, t3, t4, t5, t6, t7, t8, t9)) append
+      (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4, t5, t6, t7, t8, t9)) append
+      (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4, t5, t6, t7, t8, t9)) append
+      (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9)) append
+      (for(x5 <- shrink(t5)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9)) append
+      (for(x6 <- shrink(t6)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9)) append
+      (for(x7 <- shrink(t7)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9)) append
+      (for(x8 <- shrink(t8)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9)) append
+      (for(x9 <- shrink(t9)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9))
+    }
 }
