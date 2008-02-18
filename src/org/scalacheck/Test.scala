@@ -27,7 +27,7 @@ object Test {
   abstract sealed class Result { def passed = false }
 
   /** The property test passed */
-  case class Passed extends Result { override def passed = true }
+  case object Passed extends Result { override def passed = true }
 
   /** The property was proved wrong with the given concrete arguments.  */
   case class Failed(args: List[Arg]) extends Result
@@ -35,7 +35,7 @@ object Test {
   /** The property test was exhausted, it wasn't possible to generate enough
    *  concrete arguments satisfying the preconditions to get enough passing
    *  property evaluations. */
-  case class Exhausted extends Result
+  case object Exhausted extends Result
 
   /** An exception was raised when trying to evaluate the property with the
    *  given concrete arguments. */
@@ -73,10 +73,10 @@ object Test {
         case Left(propRes) =>
           propRes match {
             case None =>
-              if(d+1 >= prms.maxDiscardedTests) Stats(Exhausted(),s,d+1)
+              if(d+1 >= prms.maxDiscardedTests) Stats(Exhausted,s,d+1)
               else { propCallback(s,d+1); stats(s,d+1,size) }
             case Some(_:Prop.True) =>
-              if(s+1 >= prms.minSuccessfulTests) Stats(Passed(),s+1,d)
+              if(s+1 >= prms.minSuccessfulTests) Stats(Passed,s+1,d)
               else { propCallback(s+1,d); stats(s+1,d,size) }
             case Some(Prop.False(as)) => Stats(Failed(as),s,d)
             case Some(Prop.Exception(as,e)) => Stats(PropException(as,e),s,d)
@@ -126,8 +126,8 @@ object Test {
             d += dDelta
             if(res != null) stats = Stats(res,s,d)
             else {
-              if(s >= prms.minSuccessfulTests) stats = Stats(Passed(),s,d)
-              else if(d >= prms.maxDiscardedTests) stats = Stats(Exhausted(),s,d)
+              if(s >= prms.minSuccessfulTests) stats = Stats(Passed,s,d)
+              else if(d >= prms.maxDiscardedTests) stats = Stats(Exhausted,s,d)
               else propCallback(s,d)
             }
         }}
@@ -147,10 +147,10 @@ object Test {
                 case Left(propRes) => propRes match {
                   case None =>
                     d2 += 1
-                    if(d2 >= prms.maxDiscardedTests) res = Exhausted()
+                    if(d2 >= prms.maxDiscardedTests) res = Exhausted
                   case Some(_:True) =>
                     s2 += 1
-                    if(s2 >= prms.minSuccessfulTests) res = Passed()
+                    if(s2 >= prms.minSuccessfulTests) res = Passed
                   case Some(False(as)) => res = Failed(as)
                   case Some(Exception(as,e)) => res = PropException(as,e)
                 }
