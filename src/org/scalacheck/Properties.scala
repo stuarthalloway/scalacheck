@@ -16,6 +16,8 @@ trait Properties {
 
   import scala.collection._
   import scala.testing.SUnit.TestCase
+  import Arbitrary._
+  import Shrink._
 
   val name: String
 

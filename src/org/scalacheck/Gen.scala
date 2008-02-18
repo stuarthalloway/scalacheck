@@ -112,6 +112,9 @@ class Gen[+T](g: Gen.Params => Option[T]) {
 /** Contains combinators for building generators. */
 object Gen extends Properties {
 
+  import Arbitrary._
+  import Shrink._
+
   val name = "Gen"
 
   /** Record that encapsulates all parameters required for data generation */
@@ -315,7 +318,7 @@ object Gen extends Properties {
     c <- alphaLowerChar
     cs <- listOf(alphaNumChar)
   } yield List.toString(c::cs)
-  specify("identifier", forAll(identifier)(s =>
+  specify("identifier", forAll(identifier)( s =>
     s.length > 0 && s(0).isLetter && s(0).isLowerCase &&
     s.forall(_.isLetterOrDigit)
   ))

@@ -9,10 +9,13 @@
 
 package org.scalacheck
 
+sealed trait Arbitrary[T] {
+  def arbitrary: Gen[T]
+}
+
 /** Defines implicit <code>Arbitrary</code> instances for common types.
  *  <p>
- *  An <code>Arbitrary</code> instance is simply a function of type
- *  <code>() =&gt; Gen[T]</code> for some type <code>T</code>. ScalaCheck
+ *  ScalaCheck
  *  uses implicit <code>Arbitrary</code> instances when creating properties
  *  out of functions with the <code>Prop.property</code> method, and when
  *  the <code>Arbitrary.arbitrary</code> method is used. For example, the
@@ -44,10 +47,6 @@ package org.scalacheck
  *  <p>
  *  The factory method <code>Arbitrary(...)</code> takes a generator of type
  *  <code>Gen[T]</code> and returns an instance of <code>Arbitrary[T]</code>.
- *  It is strongly recommended to use this factory method instead of creating
- *  a function of type <code>() =&gt; Gen[T]</code> directly, to make your code
- *  more robust to future changes of the <code>Arbitrary</code> representation
- *  in ScalaCheck.
  *  </p>
  *
  *  <p>
@@ -61,16 +60,13 @@ object Arbitrary {
   import Gen.{value, choose, sized, elements, listOf, listOf1,
     frequency, oneOf, elementsFreq, containerOf}
 
-  /** Arbitrary[T] is a function that returns a <code>Gen[T]</code>.
-   *  For creating new Arbitrary instances, use the <code>Arbitrary(gen)</code>
-   *  factory method. */
-  type Arbitrary[T] = () => Gen[T]
-
   /** Creates an Arbitrary instance */
-  def apply[T](g: => Gen[T]): Arbitrary[T] = () => g
+  def apply[T](g: => Gen[T]): Arbitrary[T] = new Arbitrary[T] {
+    override def arbitrary = g
+  }
 
   /** Returns an arbitrary generator for the type T. */
-  def arbitrary[T](implicit a: Arbitrary[T]): Gen[T] = a()
+  def arbitrary[T](implicit a: Arbitrary[T]): Gen[T] = a.arbitrary
 
 
   // Arbitrary instances for common types //
@@ -148,9 +144,25 @@ object Arbitrary {
   /** Arbitrary instance of any buildable container (such as lists, arrays, 
    *  streams, etc). The maximum size of the container depends on the size 
    *  generation parameter. */
-  implicit def arbContainer[C[_],T](implicit a: Arbitrary[T], b: Buildable[C]
-  ): Arbitrary[C[T]] =
-    Arbitrary(containerOf[C,T](arbitrary[T]))
+  //implicit def arbContainer[C[_],T](implicit a: Arbitrary[T], b: Buildable[C]
+  //): Arbitrary[C[T]] =
+  //  Arbitrary(containerOf[C,T](arbitrary[T]))
+
+  // The above code crashes in Scala 2.7, therefore we must explicitly define
+  // the arbitrary containers for each supported type below.
+
+  implicit def arbList[T](implicit a: Arbitrary[T]): Arbitrary[List[T]] =
+    Arbitrary(containerOf[List,T](arbitrary[T]))
+
+  implicit def arbStream[T](implicit a: Arbitrary[T]): Arbitrary[Stream[T]] =
+    Arbitrary(containerOf[Stream,T](arbitrary[T]))
+
+  implicit def arbArray[T](implicit a: Arbitrary[T]): Arbitrary[Array[T]] =
+    Arbitrary(containerOf[Array,T](arbitrary[T]))
+
+  import java.util.ArrayList
+  implicit def arbArrayList[T](implicit a: Arbitrary[T]): Arbitrary[ArrayList[T]] =
+    Arbitrary(containerOf[ArrayList,T](arbitrary[T]))
 
 
   // Tuples //

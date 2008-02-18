@@ -52,7 +52,7 @@ object Buildable {
   }
 
   implicit object buildableSet extends Buildable[Set] {
-    def builder[T] = new Builder[ArrayList,T] {
+    def builder[T] = new Builder[Set,T] {
       val buf = mutable.Set.empty[T]
       def +=(x: T) = buf += x
       def finalise = buf

@@ -9,13 +9,15 @@
 
 package org.scalacheck
 
+sealed trait Shrink[T] {
+  def shrink(x: T): Stream[T]
+}
+
 object Shrink {
 
   import Stream.{cons, empty}
 
-  type Shrink[T] = T => Stream[T]
-
-  def apply[T](s: T => Stream[T]) = new Shrink[T] {
+  def apply[T](s: T => Stream[T]): Shrink[T] = new Shrink[T] {
     override def shrink(x: T) = s(x)
   }
 
@@ -123,7 +125,7 @@ object Shrink {
       (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4, t5)) append
       (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4, t5)) append
       (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4, t5)) append
-      (for(x5 <- shrink(t5)) yield (t1, t2, t3, x4, t5))
+      (for(x5 <- shrink(t5)) yield (t1, t2, t3, t4, x5))
     }
 
   /** Shrink instance of 6-tuple */
@@ -136,8 +138,8 @@ object Shrink {
       (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4, t5, t6)) append
       (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4, t5, t6)) append
       (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4, t5, t6)) append
-      (for(x5 <- shrink(t5)) yield (t1, t2, t3, x4, t5, t6)) append
-      (for(x6 <- shrink(t6)) yield (t1, t2, t3, x4, t5, t6))
+      (for(x5 <- shrink(t5)) yield (t1, t2, t3, t4, x5, t6)) append
+      (for(x6 <- shrink(t6)) yield (t1, t2, t3, t4, t5, x6))
     }
 
   /** Shrink instance of 7-tuple */
@@ -150,9 +152,9 @@ object Shrink {
       (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4, t5, t6, t7)) append
       (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4, t5, t6, t7)) append
       (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4, t5, t6, t7)) append
-      (for(x5 <- shrink(t5)) yield (t1, t2, t3, x4, t5, t6, t7)) append
-      (for(x6 <- shrink(t6)) yield (t1, t2, t3, x4, t5, t6, t7)) append
-      (for(x7 <- shrink(t7)) yield (t1, t2, t3, x4, t5, t6, t7))
+      (for(x5 <- shrink(t5)) yield (t1, t2, t3, t4, x5, t6, t7)) append
+      (for(x6 <- shrink(t6)) yield (t1, t2, t3, t4, t5, x6, t7)) append
+      (for(x7 <- shrink(t7)) yield (t1, t2, t3, t4, t5, t6, x7))
     }
 
   /** Shrink instance of 8-tuple */
@@ -165,10 +167,10 @@ object Shrink {
       (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4, t5, t6, t7, t8)) append
       (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4, t5, t6, t7, t8)) append
       (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4, t5, t6, t7, t8)) append
-      (for(x5 <- shrink(t5)) yield (t1, t2, t3, x4, t5, t6, t7, t8)) append
-      (for(x6 <- shrink(t6)) yield (t1, t2, t3, x4, t5, t6, t7, t8)) append
-      (for(x7 <- shrink(t7)) yield (t1, t2, t3, x4, t5, t6, t7, t8)) append
-      (for(x8 <- shrink(t8)) yield (t1, t2, t3, x4, t5, t6, t7, t8))
+      (for(x5 <- shrink(t5)) yield (t1, t2, t3, t4, x5, t6, t7, t8)) append
+      (for(x6 <- shrink(t6)) yield (t1, t2, t3, t4, t5, x6, t7, t8)) append
+      (for(x7 <- shrink(t7)) yield (t1, t2, t3, t4, t5, t6, x7, t8)) append
+      (for(x8 <- shrink(t8)) yield (t1, t2, t3, t4, t5, t6, t7, x8))
     }
 
   /** Shrink instance of 9-tuple */
@@ -182,10 +184,10 @@ object Shrink {
       (for(x2 <- shrink(t2)) yield (t1, x2, t3, t4, t5, t6, t7, t8, t9)) append
       (for(x3 <- shrink(t3)) yield (t1, t2, x3, t4, t5, t6, t7, t8, t9)) append
       (for(x4 <- shrink(t4)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9)) append
-      (for(x5 <- shrink(t5)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9)) append
-      (for(x6 <- shrink(t6)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9)) append
-      (for(x7 <- shrink(t7)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9)) append
-      (for(x8 <- shrink(t8)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9)) append
-      (for(x9 <- shrink(t9)) yield (t1, t2, t3, x4, t5, t6, t7, t8, t9))
+      (for(x5 <- shrink(t5)) yield (t1, t2, t3, t4, x5, t6, t7, t8, t9)) append
+      (for(x6 <- shrink(t6)) yield (t1, t2, t3, t4, t5, x6, t7, t8, t9)) append
+      (for(x7 <- shrink(t7)) yield (t1, t2, t3, t4, t5, t6, x7, t8, t9)) append
+      (for(x8 <- shrink(t8)) yield (t1, t2, t3, t4, t5, t6, t7, x8, t9)) append
+      (for(x9 <- shrink(t9)) yield (t1, t2, t3, t4, t5, t6, t7, t8, x9))
     }
 }
