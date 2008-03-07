@@ -81,7 +81,7 @@ object Test {
             case None =>
               if(d+1 >= prms.maxDiscardedTests) Stats(Exhausted,s,d+1)
               else { propCallback(s,d+1); stats(s,d+1,size) }
-            case Some(Prop.Proved(as)) => Stats(Proved(as),s+1,d)
+            case Some(Prop.Proof(as)) => Stats(Proved(as),s+1,d)
             case Some(_: Prop.True) =>
               if(s+1 >= prms.minSuccessfulTests) Stats(Passed,s+1,d)
               else { propCallback(s+1,d); stats(s+1,d,size) }
@@ -154,7 +154,7 @@ object Test {
                   case None =>
                     d2 += 1
                     if(d2 >= prms.maxDiscardedTests) res = Exhausted
-                  case Some(Prop.Proved(as)) =>
+                  case Some(Prop.Proof(as)) =>
                     s2 += 1
                     res = Proved(as)
                   case Some(_: Prop.True) =>

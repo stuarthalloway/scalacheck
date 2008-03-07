@@ -14,7 +14,7 @@ import scala.collection.mutable.ListBuffer
 /** A property is a generator that generates a property result */
 class Prop(g: Gen.Params => Option[Prop.Result]) extends Gen[Prop.Result](g) {
 
-  import Prop.{Proved,True,False,Exception}
+  import Prop.{Proof,True,False,Exception}
 
   /** Returns a new property that holds if and only if both this
    *  and the given property hold. If one of the properties doesn't
@@ -24,8 +24,8 @@ class Prop(g: Gen.Params => Option[Prop.Result]) extends Gen[Prop.Result](g) {
     case (x@Some(_: Exception), _) => x
     case (_, x@Some(_: Exception)) => x
 
-    case (x, Some(_: Proved)) => x
-    case (Some(_: Proved), x) => x
+    case (x, Some(_: Proof)) => x
+    case (Some(_: Proof), x) => x
 
     case (x, Some(_: True)) => x
     case (Some(_: True), x) => x
@@ -43,8 +43,8 @@ class Prop(g: Gen.Params => Option[Prop.Result]) extends Gen[Prop.Result](g) {
     case (x@Some(_: Exception), _) => x
     case (_, x@Some(_: Exception)) => x
 
-    case (x@Some(_: Proved), _) => x
-    case (_, x@Some(_: Proved)) => x
+    case (x@Some(_: Proof), _) => x
+    case (_, x@Some(_: Proof)) => x
 
     case (x@Some(_: True), _) => x
     case (_, x@Some(_: True)) => x
@@ -67,8 +67,8 @@ class Prop(g: Gen.Params => Option[Prop.Result]) extends Gen[Prop.Result](g) {
     case (None, x) => x
     case (x, None) => x
 
-    case (x, Some(_: Proved)) => x
-    case (Some(_: Proved), x) => x
+    case (x, Some(_: Proof)) => x
+    case (Some(_: Proof), x) => x
 
     case (x, Some(_: True)) => x
     case (Some(_: True), x) => x
@@ -180,7 +180,7 @@ object Prop extends Properties {
   abstract sealed class Result(val args: List[Arg]) {
     override def equals(x: Any) = (this,x) match {
       case (_: True, _: True)   => true
-      case (_: Proved, _: Proved)   => true
+      case (_: Proof, _: Proof)   => true
       case (_: False, _: False) => true
       case (_: Exception, _: Exception) => true
       case _ => false
@@ -188,7 +188,7 @@ object Prop extends Properties {
 
     def success = this match {
       case _:True => true
-      case _:Proved => true
+      case _:Proof => true
       case _ => false
     }
 
@@ -199,7 +199,7 @@ object Prop extends Properties {
     }
 
     def addArg(a: Arg) = this match {
-      case Proved(as) => Proved(a::as)
+      case Proof(as) => Proof(a::as)
       case True(as) => True(a::as)
       case False(as) => False(a::as)
       case Exception(as,e) => Exception(a::as,e)
@@ -208,7 +208,7 @@ object Prop extends Properties {
   }
 
   /** The property was proved with the given arguments */
-  sealed case class Proved(as: List[Arg]) extends Result(as)
+  sealed case class Proof(as: List[Arg]) extends Result(as)
 
   /** The property was true with the given arguments */
   sealed case class True(as: List[Arg]) extends Result(as)
@@ -250,7 +250,7 @@ object Prop extends Properties {
   private implicit def genToProp(g: Gen[Result]) = new Prop(g.apply).label(g.label)
 
   private def provedToTrue(r: Result) = r match {
-    case Proved(as) => True(as)
+    case Proof(as) => True(as)
     case _ => r
   }
 
@@ -268,9 +268,9 @@ object Prop extends Properties {
   })
 
   /** A property that always is proved */
-  lazy val proved: Prop = constantProp(Some(Proved(Nil)), "proved");
+  lazy val proved: Prop = constantProp(Some(Proof(Nil)), "proved");
   specify("proved", (prms: Gen.Params) => proved(prms) iff {
-    case Some(_: Proved) => true
+    case Some(_: Proof) => true
   })
 
   /** A property that denotes an exception */
@@ -316,7 +316,7 @@ object Prop extends Properties {
     r <- property(f(a))
     s <- r match {
            case _: True => proved
-           case _: Proved => proved
+           case _: Proof => proved
            case _: False => undecided
            case Exception(_, e) => exception(e)
          }
