@@ -12,6 +12,7 @@ package org.scalacheck
 object Test {
 
   import ConsoleReporter.{testReport, propReport}
+  import Prop.{Arg, Args}
 
   private def secure[T](x: => T): Either[T,Throwable] =
     try { Left(x) } catch { case e => Right(e) }
@@ -33,12 +34,12 @@ object Test {
   case object Passed extends Result { override def passed = true }
 
   /** ScalaCheck managed to prove the property correct */
-  sealed case class Proved(args: List[Arg]) extends Result { 
+  sealed case class Proved(args: Args) extends Result { 
     override def passed = true 
   }
 
   /** The property was proved wrong with the given concrete arguments.  */
-  sealed case class Failed(args: List[Arg]) extends Result
+  sealed case class Failed(args: Args) extends Result
 
   /** The property test was exhausted, it wasn't possible to generate enough
    *  concrete arguments satisfying the preconditions to get enough passing
@@ -47,7 +48,7 @@ object Test {
 
   /** An exception was raised when trying to evaluate the property with the
    *  given concrete arguments. */
-  sealed case class PropException(args: List[Arg], e: Throwable) extends Result
+  sealed case class PropException(args: Args, e: Throwable) extends Result
 
   /** An exception was raised when trying to generate concrete arguments
    *  for evaluating the property. */
@@ -90,12 +91,12 @@ object Test {
             case None =>
               if(d+1 >= prms.maxDiscardedTests) Stats(Exhausted,s,d+1)
               else { propCallback(s,d+1); stats(s,d+1,size) }
-            case Some(Prop.Proof(as)) => Stats(Proved(as),s+1,d)
-            case Some(_: Prop.True) =>
+            case Some((Prop.Proof,cd)) => Stats(Proved(cd.args),s+1,d)
+            case Some((Prop.True,_)) =>
               if(s+1 >= prms.minSuccessfulTests) Stats(Passed,s+1,d)
               else { propCallback(s+1,d); stats(s+1,d,size) }
-            case Some(Prop.False(as)) => Stats(Failed(as),s,d)
-            case Some(Prop.Exception(as,e)) => Stats(PropException(as,e),s,d)
+            case Some((Prop.False,cd)) => Stats(Failed(cd.args),s,d)
+            case Some((Prop.Exception(e),cd)) => Stats(PropException(cd.args,e),s,d)
           }
         case Right(e) => Stats(GenException(e),s,d)
       }
@@ -164,14 +165,14 @@ object Test {
                   case None =>
                     d2 += 1
                     if(d2 >= prms.maxDiscardedTests) res = Exhausted
-                  case Some(Prop.Proof(as)) =>
+                  case Some((Prop.Proof,cd)) =>
                     s2 += 1
-                    res = Proved(as)
-                  case Some(_: Prop.True) =>
+                    res = Proved(cd.args)
+                  case Some((Prop.True,_)) =>
                     s2 += 1
                     if(s2 >= prms.minSuccessfulTests) res = Passed
-                  case Some(Prop.False(as)) => res = Failed(as)
-                  case Some(Prop.Exception(as,e)) => res = PropException(as,e)
+                  case Some((Prop.False,cd)) => res = Failed(cd.args)
+                  case Some((Prop.Exception(e),cd)) => res = PropException(cd.args,e)
                 }
                 case Right(e) => res = GenException(e)
               }

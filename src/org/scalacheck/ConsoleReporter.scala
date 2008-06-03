@@ -11,6 +11,8 @@ package org.scalacheck
 
 object ConsoleReporter {
 
+  import Prop.{Arg,Args}
+
   def prettyTestStats(stats: Test.Stats) = stats.result match {
     case Test.Proved(args) =>
       "OK, proved property:                   \n" + prettyArgs(args)
@@ -28,7 +30,7 @@ object ConsoleReporter {
       "Exception \"" + e + "\" raised on argument generation."
   }
 
-  def prettyArgs(args: List[Arg]) = {
+  def prettyArgs(args: Args) = {
     val strs = for((a,i) <- args.zipWithIndex) yield (
       "> " +
       (if(a.label == "") "ARG_" + i else a.label) + 

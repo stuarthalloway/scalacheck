@@ -54,6 +54,9 @@ trait Gen[+T] {
 
   def suchThat(p: T => Boolean): Gen[T] = filter(p)
 
+  def flatCombine[U,V](g: Gen[U])(f: (Option[T],Option[U]) => Gen[V]): Gen[V] =
+    Gen(prms => f(this(prms), g(prms))(prms))
+
   def combine[U,V](g: Gen[U])(f: (Option[T],Option[U]) => Option[V]): Gen[V] =
     Gen(prms => f(this(prms), g(prms)))
 
@@ -120,6 +123,16 @@ object Gen {
   import Shrink._
 
 
+  //type Collected = scala.collection.Map[Any,Int]
+
+  /** Record that encapsulates all parameters required for data generation */
+//  case class Params(size: Int, rand: RandomGenerator, coll: Collected) {
+//    def resize(newSize: Int) = Params(newSize,rand,coll)
+//  }
+
+  /* Default generator parameters */
+//  val defaultParams = Params(100,StdRand,scala.collection.immutable.Map.empty)
+
   /** Record that encapsulates all parameters required for data generation */
   case class Params(size: Int, rand: RandomGenerator) {
     def resize(newSize: Int) = Params(newSize,rand)
@@ -128,6 +141,8 @@ object Gen {
   /* Default generator parameters */
   val defaultParams = Params(100,StdRand)
 
+
+  /** Generator factory method */
   def apply[T](g: Gen.Params => Option[T]) = new Gen[T] { 
     def apply(p: Gen.Params) = g(p) 
   }

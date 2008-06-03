@@ -12,11 +12,11 @@ package org.scalacheck
 import scala.collection.mutable.ListBuffer
 
 /** A property is a generator that generates a property result */
-trait Prop extends Gen[Prop.Result] {
+trait Prop extends Gen[(Prop.Result, Prop.CollectedData)] {
 
   import Prop.{Proof,True,False,Exception}
 
-  /** Convenience method that makes it possible to use a this property 
+  /** Convenience method that makes it possible to use a this property
    *  as an application that checks itself on execution */
   def main(args: Array[String]) { check }
 
@@ -24,7 +24,7 @@ trait Prop extends Gen[Prop.Result] {
    *  result on the console. Calling <code>p.check</code> is equal
    *  to calling <code>Test.check(p)</code>, but this method does
    *  not return the test statistics. If you need to get the results
-   *  from the test, or if you want more control over the test parameters, 
+   *  from the test, or if you want more control over the test parameters,
    *  use the <code>check</code> methods in <code>Test</code> instead. */
   def check: Unit = Test.check(this)
 
@@ -33,17 +33,17 @@ trait Prop extends Gen[Prop.Result] {
    *  generate a result, the new property will generate false.
    */
   def &&(p: Prop): Prop = combine(p) {
-    case (x@Some(_: Exception), _) => x
-    case (_, x@Some(_: Exception)) => x
+    case (x@Some((Exception(_),_)), _) => x
+    case (_, x@Some((Exception(_),_))) => x
 
-    case (x, Some(_: Proof)) => x
-    case (Some(_: Proof), x) => x
+    case (x, Some((True,_))) => x
+    case (Some((True,_)), x) => x
 
-    case (x, Some(_: True)) => x
-    case (Some(_: True), x) => x
+    case (x, Some((Proof,_))) => x
+    case (Some((Proof,_)), x) => x
 
-    case (x@Some(_: False), _) => x
-    case (_, x@Some(_: False)) => x
+    case (x@Some((False,_)), _) => x
+    case (_, x@Some((False,_))) => x
 
     case _ => None
   }
@@ -52,17 +52,17 @@ trait Prop extends Gen[Prop.Result] {
    *  or the given property (or both) hold.
    */
   def ||(p: Prop): Prop = combine(p) {
-    case (x@Some(_: Exception), _) => x
-    case (_, x@Some(_: Exception)) => x
+    case (x@Some((Exception(_),_)), _) => x
+    case (_, x@Some((Exception(_),_))) => x
 
-    case (x@Some(_: Proof), _) => x
-    case (_, x@Some(_: Proof)) => x
+    case (x@Some((Proof,_)), _) => x
+    case (_, x@Some((Proof,_))) => x
 
-    case (x@Some(_: True), _) => x
-    case (_, x@Some(_: True)) => x
+    case (x@Some((True,_)), _) => x
+    case (_, x@Some((True,_))) => x
 
-    case (Some(_: False), x) => x
-    case (x, Some(_: False)) => x
+    case (Some((False,_)), x) => x
+    case (x, Some((False,_))) => x
 
     case _ => None
   }
@@ -73,42 +73,39 @@ trait Prop extends Gen[Prop.Result] {
    *  as the other property.
    */
   def ++(p: Prop): Prop = combine(p) {
-    case (x@Some(_: Exception), _) => x
-    case (_, x@Some(_: Exception)) => x
+    case (x@Some((Exception(_),_)), _) => x
+    case (_, x@Some((Exception(_),_))) => x
 
     case (None, x) => x
     case (x, None) => x
 
-    case (x, Some(_: Proof)) => x
-    case (Some(_: Proof), x) => x
+    case (x, Some((Proof,_))) => x
+    case (Some((Proof,_)), x) => x
 
-    case (x, Some(_: True)) => x
-    case (Some(_: True), x) => x
+    case (x, Some((True,_))) => x
+    case (Some((True,_)), x) => x
 
-    case (x@Some(_: False), _) => x
-    case (_, x@Some(_: False)) => x
+    case (x@Some((False,_)), _) => x
+    case (_, x@Some((False,_))) => x
   }
 
   /** Returns a new property that holds if and only if both this
    *  and the given property generates the same result, or both
    *  properties generate no result.
    */
-  def ==(p: Prop) = Prop(prms =>
-    (this(prms), p(prms)) match {
-      case (None,None) => Prop.proved(prms)
-      case (Some(r1),Some(r2)) if r1 == r2 => Prop.proved(prms)
-      case _ => Prop.falsified(prms)
+  def ==(p: Prop): Prop = flatCombine(p) {
+    case (r1,r2) => (r1.map(_._1), r2.map(_._1)) match {
+      case (None,None) => Prop.proved
+      case (Some(r1),Some(r2)) if r1 == r2 => Prop.proved
+      case _ => Prop.falsified
     }
-  )
+  }
 
-  def addArg(a: Arg) = Prop(prms =>
-    this(prms) match {
-      case None => None
-      case Some(r) => Some(r.addArg(a))
-    }
-  ).label(label)
+  def addArg(arg: Prop.Arg): Prop = for((r,cd) <- this) yield (r, cd.addArg(arg))
 
-  override def toString = 
+  def collect(v: Any): Prop = for((r,cd) <- this) yield (r, cd.collect(v))
+
+  override def toString =
     if(label.length == 0) "Prop()" else "Prop(\"" + label + "\")"
 
 }
@@ -132,11 +129,14 @@ object Prop {
   specify("Prop.&& Exception", (p: Prop) =>
     (p && exception(null)) == exception(null)
   )
-  specify("Prop.&& Identity", (p: Prop) =>
+  specify("Prop.&& True", (p: Prop) =>
+    (p && passed) === p
+  )
+  specify("Prop.&& Proof", (p: Prop) =>
     (p && proved) === p
   )
   specify("Prop.&& False", {
-    val g = elements(proved,falsified,undecided)
+    val g = elements(passed,proved,falsified,undecided)
     forAll(g)(p => (p && falsified) == falsified)
   })
   specify("Prop.&& Undecided", {
@@ -146,7 +146,7 @@ object Prop {
   specify("Prop.&& Right prio", (sz: Int) => {
     val p = proved.addArg(Arg("","RHS",0)) && proved.addArg(Arg("","LHS",0))
     p(Gen.Params(sz,StdRand)) match {
-      case Some(r) if r.args == Arg("","RHS",0)::Nil => true
+      case Some(r) if r._2.args == Arg("","RHS",0)::Nil => true
       case _ => false
     }
   })
@@ -161,7 +161,11 @@ object Prop {
     (p || falsified) === p
   )
   specify("Prop.|| True", {
-    val g = elements(proved,falsified,undecided)
+    val g = elements(passed,falsified,undecided)
+    forAll(g)(p => (p || passed) == passed)
+  })
+  specify("Prop.|| Proof", {
+    val g = elements(passed,proved,falsified,undecided)
     forAll(g)(p => (p || proved) == proved)
   })
   specify("Prop.|| Undecided", {
@@ -176,125 +180,130 @@ object Prop {
     (p ++ exception(null)) == exception(null)
   )
   specify("Prop.++ Identity 1", {
-    val g = elements(falsified,proved,exception(null))
+    val g = elements(passed,falsified,proved,exception(null))
     forAll(g)(p => (p ++ proved) === p)
   })
   specify("Prop.++ Identity 2", (p: Prop) =>
     (p ++ undecided) === p
   )
   specify("Prop.++ False", {
-    val g = elements(falsified,proved,undecided)
+    val g = elements(passed,falsified,proved,undecided)
     forAll(g)(p => (p ++ falsified) === falsified)
   })
 
 
   // Types
 
-  /** The result of evaluating a property */
-  abstract sealed class Result(val args: List[Arg]) {
-    override def equals(x: Any) = (this,x) match {
-      case (_: True, _: True)   => true
-      case (_: Proof, _: Proof)   => true
-      case (_: False, _: False) => true
-      case (_: Exception, _: Exception) => true
-      case _ => false
+  sealed case class Arg(label: String, arg: Any, shrinks: Int)
+
+  type Args = List[Arg]
+
+  case class CollectedData(args: Args, freqMap: Map[Any,Int]) {
+    def collect(value: Any): CollectedData = freqMap.get(value) match {
+      case None => CollectedData(args, freqMap + (value -> 1))
+      case Some(n) => CollectedData(args, freqMap + (value -> (n+1)))
     }
 
+    def collect[T,U](f: T => U)(value: T): CollectedData = collect(f(value))
+
+    def addArg(arg: Arg) = CollectedData(arg::args, freqMap)
+  }
+
+  case object NoCollectedData extends CollectedData(Nil, Map.empty)
+
+  /** The result of evaluating a property */
+  sealed trait Result {
     def success = this match {
-      case _:True => true
-      case _:Proof => true
+      case True => true
+      case Proof => true
       case _ => false
     }
 
     def failure = this match {
-      case _:False => true
-      case _:Exception => true
+      case False => true
+      case Exception(_) => true
       case _ => false
     }
+  }
 
-    def addArg(a: Arg) = this match {
-      case Proof(as) => Proof(a::as)
-      case True(as) => True(a::as)
-      case False(as) => False(a::as)
-      case Exception(as,e) => Exception(a::as,e)
+  case object True extends Result
+  case object Proof extends Result
+  case object False extends Result
+  case class Exception(e: Throwable) extends Result {
+    override def equals(x: Any) = x match {
+      case Exception(_) => true
+      case _ => false
     }
-
-  }
-
-  /** The property was proved with the given arguments */
-  sealed case class Proof(as: List[Arg]) extends Result(as)
-
-  /** The property was true with the given arguments */
-  sealed case class True(as: List[Arg]) extends Result(as)
-
-  /** The property was false with the given arguments */
-  sealed case class False(as: List[Arg]) extends Result(as)
-
-  /** Evaluating the property with the given arguments raised an exception */
-  sealed case class Exception(as: List[Arg], e: Throwable) extends Result(as)
-
-  /** Boolean with support for implication */
-  class ExtendedBoolean(b: Boolean) {
-    /** Implication */
-    def ==>(p: => Prop) = Prop.==>(b,p)
-  }
-
-  /** Any with support for implication and iff */
-  class ExtendedAny[T](x: T) {
-    /** Implication with several conditions */
-    def imply(f: PartialFunction[T,Prop]) = Prop.imply(x,f)
-    def iff(f: PartialFunction[T,Prop]) = Prop.iff(x,f)
-  }
-  
-  def apply(g: Gen.Params => Option[Prop.Result]) = new Prop {
-    def apply(p: Gen.Params) = g(p)
   }
 
 
   // Implicit defs
 
-  implicit def extendedBoolean(b: Boolean) = new ExtendedBoolean(b)
+  implicit def extendedBoolean(b: Boolean) = new {
+    /** Implication */
+    def ==>(p: => Prop) = Prop.==>(b,p)
+  }
 
-  implicit def extendedAny[T](x: T) = new ExtendedAny(x)
+  implicit def extendedAny[T](x: T) = new {
+    def imply(f: PartialFunction[T,Prop]) = Prop.imply(x,f)
+    def iff(f: PartialFunction[T,Prop]) = Prop.iff(x,f)
+  }
 
   implicit def propBoolean(b: Boolean): Prop = if(b) proved else falsified
 
 
-  // Private support functions
+  // Private support methods
 
-  private def constantProp(r: Option[Result], descr: String) =
-    Prop(prms => r).label(descr)
+  private def constantProp(r: Result): Prop = Gen.value((r,NoCollectedData))
 
-  private implicit def genToProp(g: Gen[Result]) = Prop(g.apply).label(g.label)
+  private implicit def genToProp(g: Gen[(Result,CollectedData)]) = Prop(g.apply).label(g.label)
+//  private implicit def genToProp(g: Gen[Result]) = new Prop {
+//    def apply(p: Gen.Params) = g(p).map((_,NoCollectedData))
+//    label(g.label)
+//  }
 
   private def provedToTrue(r: Result) = r match {
-    case Proof(as) => True(as)
+    case Proof => True
     case _ => r
+  }
+
+
+  // Public support  methods
+
+  /** Property factory method */
+  def apply(g: Gen.Params => Option[(Result,CollectedData)]) = new Prop {
+    def apply(p: Gen.Params) = g(p)
   }
 
 
   // Property combinators
 
   /** A property that never is proved or falsified */
-  lazy val undecided: Prop = constantProp(None, "undecided")
+  lazy val undecided: Prop = Gen.fail.label("undecided")
   specify("undecided", (prms: Gen.Params) => undecided(prms) == None)
 
   /** A property that always is false */
-  lazy val falsified: Prop = constantProp(Some(False(Nil)), "falsified")
+  lazy val falsified = constantProp(False).label("failed")
   specify("falsified", (prms: Gen.Params) => falsified(prms) iff {
-    case Some(_: False) => true
+    case Some((False,_)) => true
   })
 
   /** A property that always is proved */
-  lazy val proved: Prop = constantProp(Some(Proof(Nil)), "proved");
+  lazy val proved = constantProp(Proof).label("proved")
   specify("proved", (prms: Gen.Params) => proved(prms) iff {
-    case Some(_: Proof) => true
+    case Some((Proof,_)) => true
+  })
+
+  /** A property that always is passed */
+  lazy val passed = constantProp(True).label("passed")
+  specify("passed", (prms: Gen.Params) => passed(prms) iff {
+    case Some((True,_)) => true
   })
 
   /** A property that denotes an exception */
-  def exception(e: Throwable) = constantProp(Some(Exception(Nil,e)),"exception")
+  def exception(e: Throwable) = constantProp(Exception(e)).label("exception")
   specify("exception",(prms:Gen.Params, e:Throwable) => exception(e)(prms) iff {
-    case Some(Exception(_,f)) if f == e => true
+    case Some((Exception(f),_)) if f == e => true
   })
 
   /** A property that depends on the generator size */
@@ -314,37 +323,43 @@ object Prop {
 
   /** Combines properties into one, which is true if and only if all the
    *  properties are true */
-  def all(ps: Iterable[Prop]) = Prop(prms => 
-    if(ps.forall(p => p(prms).getOrElse(False(Nil)).success)) proved(prms) 
-    else falsified(prms)
-  )
-  specify("all", forAll(Gen.listOf1(value(proved)))(l => all(l))) 
+  def all(ps: Iterable[Prop]) = Prop { prms =>
+    val it = ps.elements
+    var res = proved(prms)
+    while(res.map(_._1.success).getOrElse(false) && it.hasNext)
+      res = (Prop(prms => res) && it.next)(prms)
+    res
+  }
+  specify("all", forAll(Gen.listOf1(value(proved)))(l => all(l)))
 
   /** Combines properties into one, which is true if at least one of the
    *  properties is true */
-  def atLeastOne(ps: Iterable[Prop]) = Prop(prms => 
-    if(ps.exists(p => p(prms).getOrElse(False(Nil)).success)) proved(prms) 
-    else falsified(prms)
-  )
-  specify("atLeastOne", forAll(Gen.listOf1(value(proved)))(l => atLeastOne(l))) 
+  def atLeastOne(ps: Iterable[Prop]) = Prop { prms =>
+    val it = ps.elements
+    var res = falsified(prms)
+    while(!res.map(_._1.success).getOrElse(false) && it.hasNext)
+      res = (Prop(prms => res) || it.next)(prms)
+    res
+  }
+  specify("atLeastOne", forAll(Gen.listOf1(value(proved)))(l => atLeastOne(l)))
 
   /** Existential quantifier */
   def exists[A,P <% Prop](g: Gen[A])(f: A => P): Prop = for {
     a <- g
-    r <- property(f(a))
-    s <- r match {
-           case _: True => proved
-           case _: Proof => proved
-           case _: False => undecided
-           case Exception(_, e) => exception(e)
-         }
-  } yield s.addArg(Arg(g.label,a,0))
+    (r,cd) <- property(f(a))
+    (s,_) <- r match {
+      case True => proved
+      case Proof => proved
+      case False => undecided
+      case Exception(e) => exception(e)
+    }
+  } yield (s, cd.addArg(Arg(g.label,a,0)))
 
   /** Universal quantifier, does not shrink failed test cases. */
   def forAllNoShrink[A,P <% Prop](g: Gen[A])(f: A => P): Prop = for {
     a <- g
-    r <- property(f(a))
-  } yield provedToTrue(r).addArg(Arg(g.label,a,0))
+    (r,cd) <- property(f(a))
+  } yield (provedToTrue(r), cd.addArg(Arg(g.label,a,0)))
 
   /** Universal quantifier, shrinks failed arguments with given shrink
    *  function */
@@ -356,7 +371,7 @@ object Prop {
       def getFirstFail(xs: Stream[A], shrinks: Int) = {
         val results = xs.map { x =>
           val p = property(f(x))
-          p(prms).map(r => (x, provedToTrue(r).addArg(Arg(g.label,x,shrinks))))
+          p(prms).map { case (r,cd) => (x, (provedToTrue(r), cd.addArg(Arg(g.label,x,shrinks)))) }
         }
         results match {
           case Stream.empty => None
@@ -367,8 +382,8 @@ object Prop {
         }
       }
 
-      def isFailure(r: Option[(A,Result)]) = r match {
-        case Some((_,res)) => res.failure
+      def isFailure(r: Option[(A,(Result,CollectedData))]) = r match {
+        case Some((_,res)) => res._1.failure
         case _ => false
       }
 
@@ -379,7 +394,7 @@ object Prop {
           var xr = getFirstFail(cons(x, empty), shrinks)
           if(!isFailure(xr)) xr.map(_._2)
           else {
-            var r: Option[Result] = None
+            var r: Option[(Result,CollectedData)] = None
             do {
               shrinks += 1
               r = xr.map(_._2)
@@ -394,6 +409,8 @@ object Prop {
    *  shrink function for the type */
   def forAll[T,P](g: Gen[T])(f: T => P)
     (implicit s: Shrink[T], p: P => Prop) = forAllShrink(g, shrink[T])(f)
+
+  def collect[T,P <% Prop](f: T => P): T => Prop = t => f(t).collect(t)
 
   /** A property that holds if at least one of the given generators
    *  fails generating a value */
