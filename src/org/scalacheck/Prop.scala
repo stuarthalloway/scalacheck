@@ -222,6 +222,8 @@ object Prop {
       case _ => false
     }
 
+    def setFreqMap(fm: FreqMap) = new Result(status, args, fm, label)
+
     def addArg(a: Arg) = new Result(status, a::args, freqMap, label)
 
     def collect(x: Any) = {
@@ -383,12 +385,12 @@ object Prop {
         }
       }
 
-      def helper(x: A, r: Result, shrinks: Int): Result = {
+      def shrinker(x: A, r: Result, shrinks: Int): Result = {
         val xs = shrink(x)
         val res = r.addArg(Arg(g.label,x,shrinks))
         if(xs.isEmpty) res else getFirstFailure(xs) match {
           case Right(_) => res
-          case Left((x2,r2)) => helper(x2, r2, shrinks+1)
+          case Left((x2,r2)) => shrinker(x2, r2, shrinks+1)
         }
       }
 
@@ -396,7 +398,7 @@ object Prop {
         case None => undecided(prms)
         case Some(x) => getFirstFailure(Stream.cons(x, Stream.empty)) match {
           case Right((x,r)) => r.addArg(Arg(g.label,x,0))
-          case Left((x,r)) => helper(x,r,0) 
+          case Left((x,r)) => shrinker(x,r,0) 
         }
       }
    }
@@ -413,6 +415,16 @@ object Prop {
   /** A property that holds iff none of the given generators
    *  fails generating a value */
   def noneFailing[T](gs: Iterable[Gen[T]]) = all(gs.map(_ !== fail))
+
+  def collect[T, P <% Prop](f: T => P): T => Prop = t => Prop { prms => 
+    val p = f(t)
+    p(prms).setFreqMap(prms.freqMap).collect(t)
+  }
+
+  def collect[T,U,P <% Prop](m: T => U, f: T => P): T => Prop = t => Prop { prms =>
+    val p = f(t)
+    p(prms).setFreqMap(prms.freqMap).collect(m(t))
+  }
 
   /** Wraps and protects a property */
   def property[P <% Prop](p: => P): Prop = Prop(prms =>

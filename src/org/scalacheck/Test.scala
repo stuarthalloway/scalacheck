@@ -23,7 +23,7 @@ object Test {
     minSize: Int, maxSize: Int, rand: RandomGenerator)
 
   /** Test statistics */
-  case class Result(status: Status, succeeded: Int, discarded: Int) {
+  case class Result(status: Status, succeeded: Int, discarded: Int, freqMap: Prop.FreqMap) {
     def passed = status match {
       case Passed => true
       case Proved(_) => true
@@ -91,17 +91,17 @@ object Test {
       val propPrms = Prop.Params(Gen.Params(size.round, prms.rand), freqMap)
 
       secure(p(propPrms)) match {
-        case Right(e) => Result(GenException(e), s, d)
+        case Right(e) => Result(GenException(e), s, d, scala.collection.immutable.Map.empty)
         case Left(propRes) => propRes.status match {
           case Prop.Undecided =>
-            if(d+1 >= prms.maxDiscardedTests) Result(Exhausted, s, d+1)
+            if(d+1 >= prms.maxDiscardedTests) Result(Exhausted, s, d+1, propRes.freqMap)
             else { propCallback(s, d+1); result(s, d+1, size, propRes.freqMap) }
           case Prop.True =>
-            if(s+1 >= prms.minSuccessfulTests) Result(Passed, s+1, d)
+            if(s+1 >= prms.minSuccessfulTests) Result(Passed, s+1, d, propRes.freqMap)
             else { propCallback(s+1, d); result(s+1, d,size, propRes.freqMap) }
-          case Prop.Proof => Result(Proved(propRes.args), s+1, d)
-          case Prop.False => Result(Failed(propRes.args), s, d)
-          case Prop.Exception(e) => Result(PropException(propRes.args, e), s, d)
+          case Prop.Proof => Result(Proved(propRes.args), s+1, d, propRes.freqMap)
+          case Prop.False => Result(Failed(propRes.args), s, d, propRes.freqMap)
+          case Prop.Exception(e) => Result(PropException(propRes.args, e), s, d, propRes.freqMap)
         }
       }
     }
