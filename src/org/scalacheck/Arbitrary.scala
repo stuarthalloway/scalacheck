@@ -140,6 +140,12 @@ object Arbitrary {
       size <- arbitrary[Int] suchThat (_ >= 0)
     } yield Gen.Params(size, StdRand))
 
+  /** Arbitrary instance of prop params */
+  implicit lazy val arbPropParams: Arbitrary[Prop.Params] =
+    Arbitrary(for {
+      genPrms <- arbitrary[Gen.Params]
+    } yield Prop.Params(genPrms, scala.collection.immutable.Map.empty))
+
 
   // Higher-order types //
 
