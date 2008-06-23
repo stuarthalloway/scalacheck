@@ -144,7 +144,7 @@ object Arbitrary {
   implicit lazy val arbPropParams: Arbitrary[Prop.Params] =
     Arbitrary(for {
       genPrms <- arbitrary[Gen.Params]
-    } yield Prop.Params(genPrms, scala.collection.immutable.Map.empty))
+    } yield Prop.Params(genPrms, FreqMap.empty[Any]))
 
 
   // Higher-order types //

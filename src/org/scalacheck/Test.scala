@@ -23,7 +23,7 @@ object Test {
     minSize: Int, maxSize: Int, rand: RandomGenerator)
 
   /** Test statistics */
-  case class Result(status: Status, succeeded: Int, discarded: Int, freqMap: Prop.FreqMap) {
+  case class Result(status: Status, succeeded: Int, discarded: Int, freqMap: FreqMap[Any]) {
     def passed = status match {
       case Passed => true
       case Proved(_) => true
@@ -83,7 +83,7 @@ object Test {
    *  called each time the property is evaluted. */
   def check(prms: Params, p: Prop, propCallback: PropEvalCallback): Result =
   {
-    def result(s: Int, d: Int, sz: Float, freqMap: Prop.FreqMap): Result = {
+    def result(s: Int, d: Int, sz: Float, freqMap: FreqMap[Any]): Result = {
 
       val size: Float = if(s == 0 && d == 0) prms.minSize else
         sz + ((prms.maxSize-sz)/(prms.minSuccessfulTests-s))
@@ -91,7 +91,7 @@ object Test {
       val propPrms = Prop.Params(Gen.Params(size.round, prms.rand), freqMap)
 
       secure(p(propPrms)) match {
-        case Right(e) => Result(GenException(e), s, d, scala.collection.immutable.Map.empty)
+        case Right(e) => Result(GenException(e), s, d, FreqMap.empty[Any])
         case Left(propRes) => propRes.status match {
           case Prop.Undecided =>
             if(d+1 >= prms.maxDiscardedTests) Result(Exhausted, s, d+1, propRes.freqMap)
@@ -106,7 +106,7 @@ object Test {
       }
     }
 
-    result(0, 0, prms.minSize, scala.collection.immutable.Map.empty)
+    result(0, 0, prms.minSize, FreqMap.empty[Any])
   }
 
   /** Tests a property with the given testing parameters, and returns

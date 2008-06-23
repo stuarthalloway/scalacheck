@@ -197,19 +197,17 @@ object Prop {
 
   // Types
 
-  type FreqMap = immutable.Map[Any,Int]
-
   type Args = List[Arg]
 
   /** Property parameters */
-  case class Params(val genPrms: Gen.Params, val freqMap: FreqMap)
+  case class Params(val genPrms: Gen.Params, val freqMap: FreqMap[Any])
 
   object Result {
-    def apply(st: Status) = new Result(st, Nil, immutable.Map.empty, "")
+    def apply(st: Status) = new Result(st, Nil, FreqMap.empty[Any], "")
   }
 
   /** The result of evaluating a property */
-  class Result(val status: Status, val args: Args, val freqMap: FreqMap, val label: String) {
+  class Result(val status: Status, val args: Args, val freqMap: FreqMap[Any], val label: String) {
     def success = status match {
       case True => true
       case Proof => true
@@ -222,17 +220,11 @@ object Prop {
       case _ => false
     }
 
-    def setFreqMap(fm: FreqMap) = new Result(status, args, fm, label)
+    def setFreqMap(fm: FreqMap[Any]) = new Result(status, args, fm, label)
 
     def addArg(a: Arg) = new Result(status, a::args, freqMap, label)
 
-    def collect(x: Any) = {
-      val newFreqMap = freqMap.get(x) match {
-        case None => freqMap + (x -> 1)
-        case Some(n) => freqMap + (x -> (n+1))
-      }
-      new Result(status, args, newFreqMap, label)
-    }
+    def collect(x: Any) = setFreqMap(freqMap + x)
 
     def label(l: String) = new Result(status, args, freqMap, l)
   }
