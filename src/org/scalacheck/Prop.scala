@@ -284,24 +284,24 @@ object Prop {
 
   /** A property that never is proved or falsified */
   lazy val undecided = Prop(Result(Undecided) label "undecided")
-  specify("undecided", (prms: Params) => undecided(prms) == Undecided)
+  specify("undecided", (prms: Params) => undecided(prms).status == Undecided)
 
   /** A property that always is false */
   lazy val falsified = Prop(Result(False) label "falsified")
-  specify("falsified", (prms: Params) => falsified(prms) == False)
+  specify("falsified", (prms: Params) => falsified(prms).status == False)
 
   /** A property that always is proved */
   lazy val proved = Prop(Result(Proof) label "proved")
-  specify("proved", (prms: Params) => proved(prms) == Proof)
+  specify("proved", (prms: Params) => proved(prms).status == Proof)
 
   /** A property that always is passed */
   lazy val passed = Prop(Result(True) label "passed")
-  specify("passed", (prms: Params) => passed(prms) == True)
+  specify("passed", (prms: Params) => passed(prms).status == True)
 
   /** A property that denotes an exception */
   def exception(e: Throwable) = Prop(Result(Exception(e)) label "exception")
   specify("exception", (prms: Params, e: Throwable) => 
-    exception(e)(prms) == Exception(e))
+    exception(e)(prms).status == Exception(e))
 
   /** A property that depends on the generator size */
   def sizedProp(f: Int => Prop): Prop = Prop(prms => f(prms.genPrms.size)(prms))
@@ -413,9 +413,8 @@ object Prop {
     p(prms).setFreqMap(prms.freqMap).collect(t)
   }
 
-  def collect[T,U,P <% Prop](m: T => U, f: T => P): T => Prop = t => Prop { prms =>
-    val p = f(t)
-    p(prms).setFreqMap(prms.freqMap).collect(m(t))
+  def collect[T](t: T)(p: Prop) = Prop { prms =>
+    p(prms).setFreqMap(prms.freqMap).collect(t)
   }
 
   /** Wraps and protects a property */

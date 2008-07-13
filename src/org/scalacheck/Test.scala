@@ -66,7 +66,7 @@ object Test {
   type NamedPropEvalCallback = (String,Int,Int) => Unit
 
   /** Test callback. Takes property name, and test results. */
-  type TestStatsCallback = (String,Result) => Unit
+  type TestResCallback = (String,Result) => Unit
 
   /** Default testing parameters */
   val defaultParams = Params(100,500,0,100,StdRand)
@@ -116,7 +116,7 @@ object Test {
    *  <code>worker</code> specifies how many working actors should be used.
    *  <code>wrkSize</code> specifies how many tests each worker should
    *  be scheduled with. */
-/*  def check(prms: Params, p: Prop, propCallback: PropEvalCallback,
+  def check(prms: Params, p: Prop, propCallback: PropEvalCallback,
     workers: Int, wrkSize: Int
   ): Result =
     if(workers <= 1) check(prms,p,propCallback)
@@ -125,30 +125,32 @@ object Test {
       import scala.actors._
       import Actor._
 
-      case class S(res: Result, s: Int, d: Int)
+      case class S(status: Status, freqMap: FreqMap[Any], s: Int, d: Int)
 
       val server = actor {
         var s = 0
         var d = 0
         var size: Float = prms.minSize
         var w = workers
-        var stats: Stats = null
+        var res: Result = null
+        var fm = FreqMap.empty[Any]
         loop { react {
           case 'wrkstop => w -= 1
           case 'get if w == 0 =>
-            reply(stats)
+            reply(res)
             exit()
-          case 'params => if(stats != null) reply() else {
-            reply((s,d,size))
+          case 'params => if(res != null) reply() else {
+            reply((s,d,size,fm))
             size += wrkSize*((prms.maxSize-size)/(prms.minSuccessfulTests-s))
           }
-          case S(res, sDelta, dDelta) if stats == null =>
+          case S(status, freqMap, sDelta, dDelta) if res == null =>
             s += sDelta
             d += dDelta
-            if(res != null) stats = Stats(res,s,d)
+            fm += freqMap
+            if(res != null) res = Result(status, s, d, fm)
             else {
-              if(s >= prms.minSuccessfulTests) stats = Stats(Passed,s,d)
-              else if(d >= prms.maxDiscardedTests) stats = Stats(Exhausted,s,d)
+              if(s >= prms.minSuccessfulTests) res = Result(Passed,s,d,fm)
+              else if(d >= prms.maxDiscardedTests) res = Result(Exhausted,s,d,fm)
               else propCallback(s,d)
             }
         }}
@@ -157,42 +159,43 @@ object Test {
       def worker = actor {
         var stop = false
         while(!stop) (server !? 'params) match {
-          case (s: Int, d: Int, sz: Float) =>
+          case (s: Int, d: Int, sz: Float, freqMap: FreqMap[Any]) =>
             var s2 = s
             var d2 = d
             var size = sz
             var i = 0
-            var res: Result = null
-            while(res == null && i < wrkSize) {
-              secure(p(Gen.Params(size.round, prms.rand))) match {
-                case Left(propRes) => propRes match {
-                  case None =>
+            var fm = freqMap
+            var status: Status = null
+            while(status == null && i < wrkSize) {
+              val propPrms = Prop.Params(Gen.Params(size.round, prms.rand), fm)
+              secure(p(propPrms)) match {
+                case Right(e) => status =  GenException(e)
+                case Left(propRes) => propRes.status match {
+                  case Prop.Undecided =>
                     d2 += 1
-                    if(d2 >= prms.maxDiscardedTests) res = Exhausted
-                  case Some(Prop.Proof(as)) =>
+                    if(d2 >= prms.maxDiscardedTests) status = Exhausted
+                  case Prop.True =>
                     s2 += 1
-                    res = Proved(as)
-                  case Some(_: Prop.True) =>
+                    if(s2 >= prms.minSuccessfulTests) status = Passed
+                  case Prop.Proof =>
                     s2 += 1
-                    if(s2 >= prms.minSuccessfulTests) res = Passed
-                  case Some(Prop.False(as)) => res = Failed(as)
-                  case Some(Prop.Exception(as,e)) => res = PropException(as,e)
+                    status = Proved(propRes.args)
+                  case Prop.False => status = Failed(propRes.args)
+                  case Prop.Exception(e) => status = PropException(propRes.args, e)
                 }
-                case Right(e) => res = GenException(e)
               }
               size += ((prms.maxSize-size)/(prms.minSuccessfulTests-s2))
               i += 1
             }
-            server ! S(res,s2-s,d2-d)
+            server ! S(status, fm-freqMap, s2-s, d2-d)
           case _ => stop = true
         }
         server ! 'wrkstop
       }
 
       for(_ <- 1 to workers) worker
-      (server !? 'get).asInstanceOf[Stats]
+      (server !? 'get).asInstanceOf[Result]
     }
-*/
 
   /** Tests a property and prints results to the console. The 
    *  <code>maxDiscarded</code> parameter specifies how many 
@@ -217,7 +220,7 @@ object Test {
    *  time a property is evaluted. <code>g</code> is a function called each
    *  time a property has been fully tested. */
   def checkProperties(ps: Properties, prms: Params, 
-    propCallback: NamedPropEvalCallback, testCallback: TestStatsCallback
+    propCallback: NamedPropEvalCallback, testCallback: TestResCallback
   ): Seq[(String,Result)] = ps.properties.map { case (pName,p) =>
     val stats = check(prms,p,propCallback(pName,_,_))
     testCallback(pName,stats)
@@ -228,15 +231,15 @@ object Test {
    *  the test results. <code>f</code> is a function which is called each
    *  time a property is evaluted. <code>g</code> is a function called each
    *  time a property has been fully testedi. Uses actors for execution. */
-/*  def checkProperties(ps: Properties, prms: Params, 
-    propCallback: NamedPropEvalCallback, testCallback: TestStatsCallback, 
+  def checkProperties(ps: Properties, prms: Params, 
+    propCallback: NamedPropEvalCallback, testCallback: TestResCallback, 
     workers: Int, wrkSize: Int
   ): Seq[(String,Result)] = ps.properties.map { case (pName,p) =>
-    val stats = check(prms,p,propCallback(pName,_,_),workers,wrkSize)
-    testCallback(pName,stats)
-    (pName,stats)
+    val res = check(prms,p,propCallback(pName,_,_),workers,wrkSize)
+    testCallback(pName,res)
+    (pName,res)
   }
-*/
+
   /** Tests all properties with default testing parameters, and returns
    *  the test results. The results are also printed on the console during
    *  testing. */
