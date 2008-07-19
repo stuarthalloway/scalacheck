@@ -26,6 +26,11 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
       <name>Scala-Tools Maven2 Repository</name>
       <url>http://scala-tools.org/repo-releases</url>
     </repository>
+    <repository>
+      <id>scala-tools.org.snapshots</id>
+      <name>Scala-Tools Maven2 Repository - snapshots</name>
+      <url>http://scala-tools.org/repo-snapshots</url>
+    </repository>
   </repositories>
   <pluginRepositories>
     <pluginRepository>
